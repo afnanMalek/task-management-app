@@ -1,16 +1,19 @@
 import { Request, Response } from "express";
-// import Task from "../models/task.model";
 import Task from "../models/Task";
+
+// Utility function for sending error responses
+const handleError = (res: Response, statusCode: number, message: string, error?: any) => {
+  console.error(error); // Log error for debugging
+  return res.status(statusCode).json({ success: false, statusCode, message, error: error?.message || null });
+};
 
 // Get all tasks
 export const getTasks = async (req: Request, res: Response) => {
   try {
-    // console.log("Into The API Call >")
     const tasks = await Task.find();
-    // console.log("Task in Api >>",tasks);
-    res.json(tasks);
+    res.json({ success: true, statusCode: 200, data: tasks });
   } catch (error) {
-    res.status(500).json({ message: "Server Error" });
+    return handleError(res, 500, "Failed to fetch tasks", error);
   }
 };
 
@@ -18,32 +21,54 @@ export const getTasks = async (req: Request, res: Response) => {
 export const createTask = async (req: Request, res: Response) => {
   try {
     const taskPayload = req.body;
+    if (!taskPayload.title) {
+      return handleError(res, 400, "Task title is required");
+    }
+
     const newTask = new Task(taskPayload);
     await newTask.save();
-    res.status(201).json(newTask);
+
+    res.status(201).json({ success: true, statusCode: 201, message: "Task created successfully", data: newTask });
   } catch (error) {
-    res.status(500).json({ message: "Server Error" });
+    return handleError(res, 500, "Failed to create task", error);
   }
 };
 
 // Update a task
 export const updateTask = async (req: Request, res: Response) => {
   try {
+    const { id } = req.params;
+    if (!id) {
+      return handleError(res, 400, "Task ID is required");
+    }
 
-    console.log(req.params.id, req.body);
-    const task = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(task);
+    const updatedTask = await Task.findByIdAndUpdate(id, req.body, { new: true });
+
+    if (!updatedTask) {
+      return handleError(res, 404, "Task not found");
+    }
+
+    res.json({ success: true, statusCode: 200, message: "Task updated successfully", data: updatedTask });
   } catch (error) {
-    res.status(500).json({ message: "Server Error" });
+    return handleError(res, 500, "Failed to update task", error);
   }
 };
 
 // Delete a task
 export const deleteTask = async (req: Request, res: Response) => {
   try {
-    await Task.findByIdAndDelete(req.params.id);
-    res.json({ message: "Task Deleted" });
+    const { id } = req.params;
+    if (!id) {
+      return handleError(res, 400, "Task ID is required");
+    }
+
+    const deletedTask = await Task.findByIdAndDelete(id);
+    if (!deletedTask) {
+      return handleError(res, 404, "Task not found");
+    }
+
+    res.json({ success: true, statusCode: 200, message: "Task deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Server Error" });
+    return handleError(res, 500, "Failed to delete task", error);
   }
 };

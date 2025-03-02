@@ -3,7 +3,13 @@ import dotenv from "dotenv";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 dotenv.config();
 
-const genAI = new GoogleGenerativeAI(process.env.YOUR_GOOGLE_GEMINI_API_KEY);
+const apiKey = process.env.YOUR_GOOGLE_GEMINI_API_KEY;
+if (!apiKey) {
+  throw new Error("Missing Google Gemini API Key. Please check your .env file.");
+}
+
+const genAI = new GoogleGenerativeAI(apiKey);
+
 
 export const generateTaskDescription = async (title: string): Promise<string> => {
     try {

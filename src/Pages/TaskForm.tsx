@@ -4,7 +4,22 @@ import AuthServices from "../API/AuthServices";
 import InputField from "../Common/InputField";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formSchema } from "../Zod/validationSchema";
-import { statusMapping } from "../utils/Storage";
+import { statusMapping, showSuccessToast, showErrorToast } from "../utils/Storage";
+
+type TaskStatus = "pending" | "in-progress" | "completed";
+
+
+interface Task {
+  _id: string;
+  title: string;
+  description: string;
+  status: TaskStatus;
+}
+
+interface AIDescriptionResponse {
+  description: string;
+}
+
 
 const TaskForm = ({ task, closeForm, onTaskUpdate }: any) => {
   const {
@@ -33,20 +48,22 @@ const TaskForm = ({ task, closeForm, onTaskUpdate }: any) => {
       title: task?.title || "",
       description: task?.description || "",
       status: task?.status || "pending",
-      statusId: statusMapping[task?.status || "pending"].id,
+      // statusId: statusMapping[task?.status || "pending"].id,
+      statusId: statusMapping[(task?.status as TaskStatus) || "pending"].id,
+
     });
   }, [task, reset]);
 
   useEffect(() => {
     reset((prevValues) => ({
       ...prevValues,
-      statusId: statusMapping[status]?.id || prevValues.statusId,
+      statusId: statusMapping[status as TaskStatus]?.id || prevValues.statusId,
     }));
   }, [status, reset]);
 
   const onSubmit = async (formData: any) => {
     try {
-      const statusId = statusMapping[formData.status].id;
+      const statusId = statusMapping[formData.status as TaskStatus].id;
       const updatedFormData = { ...formData, statusId };
 
       let response;
@@ -56,35 +73,42 @@ const TaskForm = ({ task, closeForm, onTaskUpdate }: any) => {
         response = await AuthServices.createTask(updatedFormData);
       }
 
-      if (response) {
-        onTaskUpdate(response);
+      if (response?.success) {
+        showSuccessToast(response.message || "Task saved successfully!");
+        onTaskUpdate(response.data);
+      } else {
+        showErrorToast(response.message || "Something went wrong!");
       }
       closeForm();
     } catch (error) {
       console.error("Error submitting task:", error);
+      showErrorToast("Failed to submit task!");
     }
   };
 
-  // Function to get AI-generated description
   const handleGenerateAIDescription = async () => {
     if (!title.trim()) {
-      alert("Please enter a title before generating a description.");
+      showErrorToast("Please enter a title before generating a description.");
       return;
     }
-
+  
     setLoadingAI(true);
     try {
-      const aiDescription = await AuthServices.getAIDescription(title);
-      console.log("aiDescription>>",aiDescription)
-      if (aiDescription) {
-        setValue("description", aiDescription?.description);
+      const aiDescription: AIDescriptionResponse = await AuthServices.getAIDescription(title);
+      console.log(aiDescription)
+      if (aiDescription.description) {
+        setValue("description", aiDescription.description);
+        showSuccessToast("AI-generated description added.");
+      } else {
+        showErrorToast("Failed to generate AI description.");
       }
     } catch (error) {
       console.error("Error fetching AI description:", error);
+      showErrorToast("Error fetching AI description!");
     }
     setLoadingAI(false);
   };
-
+  
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-60">
       <div className="bg-gray-800 p-6 rounded-lg shadow-xl w-96">
@@ -99,22 +123,18 @@ const TaskForm = ({ task, closeForm, onTaskUpdate }: any) => {
             register={register} 
             errors={errors} 
           />
-          
-          {/* Description Field as a Textarea */}
           <div>
             <label className="block text-sm font-medium text-gray-300">Description</label>
             <textarea
               {...register("description")}
               className="w-full mt-1 p-2 border rounded-lg bg-gray-700 text-white border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
               placeholder="Enter task description"
-              rows={4} // Multi-line textarea
+              rows={4}
             />
             {errors.description && (
               <p className="text-red-400 text-sm mt-1">{errors.description.message}</p>
             )}
           </div>
-
-          {/* Generate AI Description Button */}
           <button
             type="button"
             onClick={handleGenerateAIDescription}
@@ -123,7 +143,6 @@ const TaskForm = ({ task, closeForm, onTaskUpdate }: any) => {
           >
             {loadingAI ? "Generating..." : "Generate AI Description"}
           </button>
-
           <div>
             <label className="block text-sm font-medium text-gray-300">Status</label>
             <select
@@ -137,7 +156,6 @@ const TaskForm = ({ task, closeForm, onTaskUpdate }: any) => {
               ))}
             </select>
           </div>
-
           <div className="flex justify-end space-x-3">
             <button 
               type="button" 

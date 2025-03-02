@@ -3,7 +3,7 @@ import { generateTaskDescription } from "../services/openaiService";
 
 const router = express.Router();
 
-router.post("/generate-description", async (req, res) => {
+router.post("/generate-description", async (req:any, res:any) => {
     try {
       const { title } = req.body;
       if (!title) return res.status(400).json({ error: "Task title is required" });
