@@ -31,7 +31,7 @@ const fetchApi = async <T>(
     };
 
     try {
-        console.log("endpoint>>",endpoint)
+        // console.log("endpoint>>",endpoint)
         const response = await fetch(`${BASE_URL}${endpoint}`, options);
         const result: ApiResponse<T> = await response.json();
         if (!response.ok) throw new Error(result.message || "Something went wrong");
